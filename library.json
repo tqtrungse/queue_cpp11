@@ -1,23 +1,23 @@
 {
     "name": "Queue_CPP11",
-    "version": "1.0.0",
-    "description": "A \"thread safe SPSC queue\" for any platforms supports C++11",
-    "keywords": "SPSC, thread, queue, lock-free",
+    "version": "1.0.1",
+    "description": "A \"thread safe SPSC queue\" for any embedded platform supports C++11",
+    "keywords": "SPSC, thread, queue, lock-free, c++11",
     "repository":
     {
       "type": "git",
-      "url": "https://github.com/tqtrungse/Queue_CPP11"
+      "url": "https://github.com/tqtrungse/queue_cpp11"
     },
     "authors":
     [
       {
         "name": "Trung Tran",
         "email": "tqtrungse@gmail.com",
-        "url": "https://github.com/tqtrungse/Queue_CPP11/issues"
+        "url": "https://github.com/tqtrungse/queue_cpp11/issues"
       }
     ],
     "license": "MIT",
-    "homepage": "https://github.com/tqtrungse/Queue_CPP11",
+    "homepage": "https://github.com/tqtrungse/queue_cpp11",
     "frameworks": "Arduino",
     "platforms": "*"
   }
