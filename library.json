@@ -1,6 +1,6 @@
 {
     "name": "Queue_CPP11",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "description": "A \"thread safe SPSC queue\" for any platforms supports C++11",
     "keywords": "SPSC, thread, queue, lock-free",
     "repository":

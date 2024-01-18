@@ -41,8 +41,6 @@ namespace t2 {
         // send and receive positions,
         // low 16 bits represent position in the buffer,
         // high 16 bits represent the current “lap” over the ring buffer
-        // CPU cache line size is based on:
-        //      https://esp32.com/viewtopic.php?t=8492#:~:text=The%20cache%20line%20size%20is%2032%20bytes.
         alignas(CACHE_PADDED) uint32_t send_x{0};
         alignas(CACHE_PADDED) uint32_t recv_x{static_cast<uint32_t>(1 << 16)};
 
@@ -150,6 +148,17 @@ namespace t2 {
             elem->lap.store(elem_lap + 1, std::memory_order_release);
             this->size.fetch_add(-1, std::memory_order_relaxed);
             return std::move(out);
+        }
+
+        T* try_peek() {
+            elem* elem;
+            bool success;
+
+            std::tie(elem, std::ignore, success) = this->select(this->recv_x);
+            if (!success) {
+                return nullptr;
+            }
+            return &elem->value;
         }
 
         int32_t len() const noexcept {
