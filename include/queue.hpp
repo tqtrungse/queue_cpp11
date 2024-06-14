@@ -36,7 +36,7 @@ namespace t2 {
         std::unique_ptr<elem> buf{};
 
         // calculate length.
-        std::atomic<int32_t> size{0};
+        std::atomic<uint32_t> size{0};
 
         // send and receive positions,
         // low 16 bits represent position in the buffer,
@@ -114,9 +114,11 @@ namespace t2 {
             if (!success) {
                 return false;
             }
+
             elem->value = val;
             elem->lap.store(elem_lap + 1, std::memory_order_release);
             this->size.fetch_add(1, std::memory_order_relaxed);
+            
             return true;
         }
 
@@ -129,25 +131,29 @@ namespace t2 {
             if (!success) {
                 return false;
             }
+
             elem->value = std::move(val);
             elem->lap.store(elem_lap + 1, std::memory_order_release);
             this->size.fetch_add(1, std::memory_order_relaxed);
+
             return true;
         }
 
-        T try_pop() {
+        std::tuple<T, bool> try_pop() {
             elem* elem;
             uint16_t elem_lap;
             bool success;
 
             std::tie(elem, elem_lap, success) = this->select(this->recv_x);
             if (!success) {
-                return T{};
+                return std::make_tuple(T{}, false);
             }
+
             T out{std::move(elem->value)};
             elem->lap.store(elem_lap + 1, std::memory_order_release);
             this->size.fetch_add(-1, std::memory_order_relaxed);
-            return std::move(out);
+
+            return std::make_tuple(std::move(out), true);
         }
 
         T* try_peek() {
@@ -158,10 +164,11 @@ namespace t2 {
             if (!success) {
                 return nullptr;
             }
+
             return &elem->value;
         }
 
-        int32_t len() const noexcept {
+        uint32_t len() const noexcept {
             return this->size.load(std::memory_order_acquire);
         }
     };
