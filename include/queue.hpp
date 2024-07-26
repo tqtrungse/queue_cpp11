@@ -30,19 +30,19 @@ namespace t2 {
         };
 
         // queue capacity
-        uint16_t cap;
+        uint16_t cap_;
 
         // ring buffer
-        std::unique_ptr<elem> buf{};
+        std::unique_ptr<elem> buf_{};
 
         // calculate length.
-        std::atomic<uint32_t> size{0};
+        std::atomic<uint32_t> size_{0};
 
         // send and receive positions,
         // low 16 bits represent position in the buffer,
         // high 16 bits represent the current “lap” over the ring buffer
-        alignas(CACHE_PADDED) uint32_t send_x{0};
-        alignas(CACHE_PADDED) uint32_t recv_x{static_cast<uint32_t>(1 << 16)};
+        alignas(CACHE_PADDED) uint32_t sendX_{0};
+        alignas(CACHE_PADDED) uint32_t recvX_{static_cast<uint32_t>(1 << 16)};
 
 
         std::tuple<elem*, uint16_t, bool> select(uint32_t& X) {
@@ -57,13 +57,13 @@ namespace t2 {
                 x = X;
                 pos = (uint16_t) x;
                 lap = (uint16_t) (x >> 16);
-                elem = &this->buf.get()[pos];
+                elem = &buf_.get()[pos];
                 elem_lap = elem->lap.load(std::memory_order_acquire);
 
                 if (lap == elem_lap) {
                     // The element is ready for writing on this lap.
                     // Try to claim the right to write to this element.
-                    if (pos + 1 < this->cap) {
+                    if (pos + 1 < cap_) {
                         new_x = x + 1;
                     } else {
                         new_x = (uint32_t) (lap + 2) << 16;
@@ -90,8 +90,8 @@ namespace t2 {
         }
 
     public:
-        explicit queue(uint16_t Cap) noexcept
-                : cap{Cap} {
+        explicit queue(uint16_t cap) noexcept
+                : cap_{cap} {
             static_assert(
                     std::is_copy_assignable<T>::value || std::is_move_assignable<T>::value,
                     "T have to copy or move assigment for push"
@@ -101,8 +101,8 @@ namespace t2 {
                     "T have to default and move constructor for pop"
             );
             // For buf
-            assert(Cap > 0);
-            this->buf.reset(new elem[Cap]);
+            assert(cap > 0);
+            buf_.reset(new elem[cap]);
         }
 
         bool try_push(const T& val) {
@@ -110,14 +110,14 @@ namespace t2 {
             uint16_t elem_lap;
             bool success;
 
-            std::tie(elem, elem_lap, success) = this->select(this->send_x);
+            std::tie(elem, elem_lap, success) = this->select(sendX_);
             if (!success) {
                 return false;
             }
 
             elem->value = val;
             elem->lap.store(elem_lap + 1, std::memory_order_release);
-            this->size.fetch_add(1, std::memory_order_relaxed);
+            size_.fetch_add(1, std::memory_order_relaxed);
             
             return true;
         }
@@ -127,14 +127,14 @@ namespace t2 {
             uint16_t elem_lap;
             bool success;
 
-            std::tie(elem, elem_lap, success) = this->select(this->send_x);
+            std::tie(elem, elem_lap, success) = this->select(sendX_);
             if (!success) {
                 return false;
             }
 
             elem->value = std::move(val);
             elem->lap.store(elem_lap + 1, std::memory_order_release);
-            this->size.fetch_add(1, std::memory_order_relaxed);
+            size_.fetch_add(1, std::memory_order_relaxed);
 
             return true;
         }
@@ -144,14 +144,14 @@ namespace t2 {
             uint16_t elem_lap;
             bool success;
 
-            std::tie(elem, elem_lap, success) = this->select(this->recv_x);
+            std::tie(elem, elem_lap, success) = this->select(recvX_);
             if (!success) {
                 return std::make_tuple(T{}, false);
             }
 
             T out{std::move(elem->value)};
             elem->lap.store(elem_lap + 1, std::memory_order_release);
-            this->size.fetch_add(-1, std::memory_order_relaxed);
+            size_.fetch_add(-1, std::memory_order_relaxed);
 
             return std::make_tuple(std::move(out), true);
         }
@@ -160,7 +160,7 @@ namespace t2 {
             elem* elem;
             bool success;
 
-            std::tie(elem, std::ignore, success) = this->select(this->recv_x);
+            std::tie(elem, std::ignore, success) = this->select(recvX_);
             if (!success) {
                 return nullptr;
             }
@@ -169,7 +169,7 @@ namespace t2 {
         }
 
         uint32_t len() const noexcept {
-            return this->size.load(std::memory_order_acquire);
+            return size_.load(std::memory_order_acquire);
         }
     };
 }
